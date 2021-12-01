@@ -1,5 +1,6 @@
+import numpy
+import skimage.transform
 from skimage import io
-from skimage.transform import resize
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -47,7 +48,16 @@ class Image:
     #   on retourne une nouvelle image binarisee
     #==============================================================================
     def binarisation(self, S):
-        pass
+        tobin_array = np.copy(self.pixels) # on créée une copie du tableau de pixels
+
+        mask = tobin_array < S  # on créée un masque identifiant les pixels inférieurs au seuil
+        np.putmask(tobin_array, mask, 0)  # on l'applique
+        mask = tobin_array >= S # même chose pour les pixels supérieurs ou égaux
+        np.putmask(tobin_array, mask, 255)
+
+        result = Image()
+        result.set_pixels(tobin_array)
+        return result
 
 
     #==============================================================================
@@ -59,18 +69,49 @@ class Image:
     #   on retourne une nouvelle image recadree
     #==============================================================================
     def localisation(self):
-        pass
+        lmin = -1
+        lmax = -1
+        cmin = -1
+        cmax = -1
+        for y in range(len(self.pixels)): # on parcours les lignes de l'image unes à unes
+            leftOffset = -1  # premier pixel noir rencontré sur la ligne
+            rightOffset  = -1  # dernier pixel noir rencontré sur la ligne
+            for x in range(len(self.pixels[y])):  # on  parcours les pixels de la ligne courante
+                pixel = self.pixels[y][x]
+                if leftOffset < 0 and pixel == 0:  # on trouve le premierr pixel noir de la ligne
+                    leftOffset = x
+                    rightOffset = x
+                elif pixel == 0:  # on trouve un autre pixel noir qui devient pour l'instant le dernier de la ligne
+                    rightOffset = x
+            if leftOffset >= 0: # si on a trouvés au moins un pixel sur la ligne
+                if lmin == -1: # si c'est la première ligne avec un pixel noir on set lmin
+                    lmin = y
+                lmax = y # la ligne courante est forcément lmax
+                if leftOffset < cmin or cmin == -1:   # on sauvegarde le premier pixel rencontré si l'indice de sa colonne est inférieur au plus petit indice cmin
+                    cmin = leftOffset
+                if rightOffset > cmax:  # pareil pour cmax
+                    cmax = rightOffset
+
+        result = Image()
+        result.set_pixels(self.pixels[lmin:lmax+1, cmin:cmax+1])
+        return result
 
     #==============================================================================
     # Methode de redimensionnement d'image
     #==============================================================================
     def resize(self, new_H, new_W):
-        pass
+        result = skimage.transform.resize(np.copy(self.pixels), (new_H, new_W), 0)
+        resimg = Image()
+        resimg.set_pixels(np.uint8(result*255))
+        return resimg
+
 
 
     #==============================================================================
     # Methode de mesure de similitude entre l'image self et un modele im
     #==============================================================================
     def similitude(self, im):
-        pass
+        mask = self.pixels == im.pixels  # on utilise un masque sur les pixels identiques aux deux images
+        return np.count_nonzero(mask) / (self.H * self.W) # on retourne le nombre de pixels identiques divisé par (H * W)
+
 
